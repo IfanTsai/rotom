@@ -12,8 +12,8 @@
 
 static inline void execute_debugee(const char *prog)
 {
+    ptrace(PTRACE_TRACEME, 0);
     personality(ADDR_NO_RANDOMIZE); // disable address space randomization
-    ptrace(PTRACE_TRACEME, 0, nullptr, nullptr);
     execl(prog, prog, nullptr);
 }
 
@@ -23,7 +23,6 @@ int main(int argc, char *argv[])
         std::cerr << "Please specify a program to debug" << std::endl;
         exit(-1);
     }
-
 
     const char *prog = argv[1];
     pid_t pid = fork();
