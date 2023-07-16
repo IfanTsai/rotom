@@ -9,6 +9,7 @@
 #include <sys/ptrace.h>
 #include <sys/ptrace.h>
 #include <sys/personality.h>
+#include <sys/prctl.h>
 
 static inline void execute_debugee(const char *prog)
 {
@@ -33,9 +34,9 @@ int main(int argc, char *argv[])
         std::cout << "Started debugging process " << pid << std::endl;
         Debugger dbg(prog, pid);
         dbg.run();
+    } else {
+        execute_debugee(prog);
     }
-
-    execute_debugee(prog);
 
     return 0;
 }

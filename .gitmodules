@@ -1,3 +1,6 @@
 [submodule "linenoise"]
-	path = linenoise
+	path = 3rd/linenoise
 	url = git@github.com:antirez/linenoise.git
+[submodule "3rd/libelfin"]
+	path = 3rd/libelfin
+	url = git@github.com:aclements/libelfin.git

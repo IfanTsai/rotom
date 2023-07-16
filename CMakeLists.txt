@@ -11,12 +11,26 @@ include(GNUInstallDirs)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/linenoise
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd/linenoise
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd/libelfin
 )
 
 file(GLOB SRCS
-    ./src/*.cc
-    ./linenoise/linenoise.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd/linenoise/linenoise.c
 )
 
 add_executable(${CMAKE_PROJECT_NAME} ${SRCS})
+
+add_custom_target(
+    libelfin
+    COMMAND make
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/3rd/libelfin
+)
+
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd/libelfin/dwarf/libdwarf++.so
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd/libelfin/elf/libelf++.so
+)
+
+add_dependencies(${CMAKE_PROJECT_NAME} libelfin)
