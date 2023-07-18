@@ -153,6 +153,10 @@ void Debugger::handle_command(const std::string &line)
 
             write_memory(std::stol(addr, 0, 16), std::stol(val, 0, 16));
         }
+    } else if (starts_with(command, "stepi")) {
+        single_step_instruction(true);
+        auto line_entry = get_line_entry_from_pc(get_elf_addr(get_pc()));
+        print_source_code(line_entry->file->path, line_entry->line);
     } else {
         std::cerr << "Unknown command" << std::endl;
     }
@@ -191,14 +195,23 @@ void Debugger::step_over_breakpoint()
         if (bp.is_enable()) {
             // disable the breakpoint and recover the original instruction
             bp.disable();
-            // step over the original instruction
-            ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
 
-            wait_signal();
+            // step over the original instruction
+            single_step_instruction();
 
             // re-enable the breakpoint
             bp.enable();
         }
+    }
+}
+
+void Debugger::single_step_instruction(bool with_check_breakpoint)
+{
+    if (with_check_breakpoint && m_breakpoints.count(get_pc())) {
+        step_over_breakpoint();
+    } else {
+        ptrace(PTRACE_SINGLESTEP, m_pid, nullptr, nullptr);
+        wait_signal();
     }
 }
 

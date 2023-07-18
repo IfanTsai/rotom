@@ -50,6 +50,7 @@ private:
     void continue_execution();
     void set_breakpoint_at_addr(const std::intptr_t addr);
     void dump_registers();
+    void single_step_instruction(bool with_check_breakpoint=false);
     void step_over_breakpoint();
     void print_source_code(const std::string &file_name, uint64_t line, uint64_t n_lines_context=2);
     dwarf::die get_function_from_pc(uint64_t pc);
