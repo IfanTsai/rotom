@@ -98,7 +98,7 @@ void Debugger::handle_sigtrap(siginfo_t *info) {
         // pc back to the address, - 1 because execution will go past the breakpoint
         set_pc(get_pc() - 1);
         std::cout << "Hit breakpoint at address 0x" << std::hex << get_pc() << std::endl;
-        auto line_entry = get_line_entry_from_pc(get_elf_addr(get_pc()));
+        auto line_entry = get_line_entry_from_addr(get_elf_pc());
         print_source_code(line_entry->file->path, line_entry->line);
         return;
     }
@@ -155,8 +155,14 @@ void Debugger::handle_command(const std::string &line)
         }
     } else if (starts_with(command, "stepi")) {
         single_step_instruction(true);
-        auto line_entry = get_line_entry_from_pc(get_elf_addr(get_pc()));
+        auto line_entry = get_line_entry_from_addr(get_elf_pc());
         print_source_code(line_entry->file->path, line_entry->line);
+    } else if (starts_with(command, "step")) {
+        step_in();
+    } else if (starts_with(command, "next")) {
+        step_over();
+    } else if (starts_with(command, "finish")) {
+        step_out();
     } else {
         std::cerr << "Unknown command" << std::endl;
     }
@@ -175,6 +181,15 @@ void Debugger::set_breakpoint_at_addr(const std::intptr_t addr)
     Breakpoint bp(m_pid, addr);
     bp.enable();
     m_breakpoints[addr] = bp;
+}
+
+void Debugger::remove_breakpoint(uint64_t addr)
+{
+    if (m_breakpoints.at(addr).is_enable()) {
+        m_breakpoints.at(addr).disable();
+    }
+
+    m_breakpoints.erase(addr);
 }
 
 void Debugger::dump_registers()
@@ -202,6 +217,67 @@ void Debugger::step_over_breakpoint()
             // re-enable the breakpoint
             bp.enable();
         }
+    }
+}
+
+// set breakpoint at the return address and continue execution
+void Debugger::step_out()
+{
+    uint64_t framer_pointer = get_register_value(m_pid, REG::rbp);
+    uint64_t return_addr = read_memory(framer_pointer + 8);
+
+    bool should_remove_breakpoint = false;
+    if (!m_breakpoints.count(return_addr)) {
+        set_breakpoint_at_addr(return_addr);
+        should_remove_breakpoint = true;
+    }
+
+    continue_execution();
+
+    if (should_remove_breakpoint) {
+        remove_breakpoint(return_addr);
+    }
+}
+
+void Debugger::step_in()
+{
+    uint64_t line = get_line_entry_from_addr(get_elf_pc())->line;
+
+    while (get_line_entry_from_addr(get_elf_pc())->line == line) {
+        single_step_instruction(true);
+    }
+
+    auto line_entry = get_line_entry_from_addr(get_elf_pc());
+    print_source_code(line_entry->file->path, line_entry->line);
+}
+
+void Debugger::step_over()
+{
+    auto func = get_function_from_addr(get_elf_pc());
+    auto func_entry_addr = at_low_pc(func);
+    auto func_end_addr = at_high_pc(func);
+
+    std::vector<uint64_t> to_remove_breakpoint_addrs{};
+    for (auto line = get_line_entry_from_addr(func_entry_addr); line->address < func_end_addr; line++) {
+        auto start_line = get_line_entry_from_addr(get_elf_pc());
+        uint64_t load_addr = get_load_addr(line->address);
+        if (line->address != start_line->address && !m_breakpoints.count(load_addr)) {
+            set_breakpoint_at_addr(load_addr);
+            to_remove_breakpoint_addrs.push_back(load_addr);
+        }
+    }
+
+    auto framer_pointer = get_register_value(m_pid, REG::rbp);
+    auto return_addr = read_memory(framer_pointer + 8);
+    if (!m_breakpoints.count(return_addr)) {
+        set_breakpoint_at_addr(return_addr);
+        to_remove_breakpoint_addrs.push_back(return_addr);
+    }
+
+    continue_execution();
+
+    for (auto addr : to_remove_breakpoint_addrs) {
+        remove_breakpoint(addr);
     }
 }
 
@@ -245,15 +321,15 @@ void Debugger::print_source_code(const std::string &file_name, uint64_t line, ui
     std::cout << std::endl;
 }
 
-dwarf::die Debugger::get_function_from_pc(uint64_t pc)
+dwarf::die Debugger::get_function_from_addr(uint64_t addr)
 {
     for (auto &cu : m_dwarf.compilation_units()) {
-        if (!dwarf::die_pc_range(cu.root()).contains(pc)) {
+        if (!dwarf::die_pc_range(cu.root()).contains(addr)) {
             continue;
         }
 
         for (const auto &die : cu.root()) {
-            if (die.tag == dwarf::DW_TAG::subprogram && dwarf::die_pc_range(die).contains(pc)) {
+            if (die.tag == dwarf::DW_TAG::subprogram && dwarf::die_pc_range(die).contains(addr)) {
                 return die;
             }
         }
@@ -262,15 +338,15 @@ dwarf::die Debugger::get_function_from_pc(uint64_t pc)
     throw std::out_of_range{"Cannot find function"};
 }
 
-dwarf::line_table::iterator Debugger::get_line_entry_from_pc(uint64_t pc)
+dwarf::line_table::iterator Debugger::get_line_entry_from_addr(uint64_t addr)
 {
     for (auto &cu : m_dwarf.compilation_units()) {
-        if (!dwarf::die_pc_range(cu.root()).contains(pc)) {
+        if (!dwarf::die_pc_range(cu.root()).contains(addr)) {
             continue;
         }
 
         auto &line_table = cu.get_line_table();
-        auto it = line_table.find_address(pc);
+        auto it = line_table.find_address(addr);
         if (it == line_table.end()) {
             goto _exception;
         }

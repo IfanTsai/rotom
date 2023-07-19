@@ -41,6 +41,10 @@ private:
 
     uint64_t get_elf_addr(uint64_t addr) { return addr - m_elf_addr_offset; }
 
+    uint64_t get_load_addr(uint64_t addr) { return addr + m_elf_addr_offset; }
+
+    uint64_t get_elf_pc() { return get_elf_addr(get_pc()); }
+
     void get_signal_info(siginfo_t *info) { ptrace(PTRACE_GETSIGINFO, m_pid, nullptr, info); }
 
     void wait_signal(bool slient=false);
@@ -49,11 +53,15 @@ private:
     void handle_command(const std::string &line);
     void continue_execution();
     void set_breakpoint_at_addr(const std::intptr_t addr);
+    void remove_breakpoint(uint64_t addr);
     void dump_registers();
     void single_step_instruction(bool with_check_breakpoint=false);
     void step_over_breakpoint();
+    void step_out();
+    void step_in();
+    void step_over();
     void print_source_code(const std::string &file_name, uint64_t line, uint64_t n_lines_context=2);
-    dwarf::die get_function_from_pc(uint64_t pc);
-    dwarf::line_table::iterator get_line_entry_from_pc(uint64_t pc);
+    dwarf::die get_function_from_addr(uint64_t pc);
+    dwarf::line_table::iterator get_line_entry_from_addr(uint64_t pc);
 };
 
