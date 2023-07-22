@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <sys/ptrace.h>
 
-enum class REG {
+enum class Reg {
     rax, rbx, rcx, rdx,
     rdi, rsi, rbp, rsp,
     r8, r9, r10, r11,
@@ -22,77 +22,77 @@ enum class REG {
 };
 
 struct reg_descriptor {
-    REG reg;
+    Reg reg;
     int dwarf_r;
     std::string name;
 };
 
 static constexpr std::size_t nr_registers = 27;
 static const std::array<reg_descriptor, nr_registers> g_register_descriptors{{
-    { REG::r15, 15, "r15" },
-    { REG::r14, 14, "r14" },
-    { REG::r13, 13, "r13" },
-    { REG::r12, 12, "r12" },
-    { REG::rbp, 6,  "rbp" },
-    { REG::rbx, 3,  "rbx" },
-    { REG::r11, 11, "r11" },
-    { REG::r10, 10, "r10" },
-    { REG::r9,  9,  "r9" },
-    { REG::r8,  8,  "r8" },
-    { REG::rax, 0,  "rax" },
-    { REG::rcx, 2,  "rcx" },
-    { REG::rdx, 1, "rdx" },
-    { REG::rsi, 4, "rsi" },
-    { REG::rdi, 5, "rdi" },
-    { REG::orig_rax, -1, "orig_rax" },
-    { REG::rip, -1, "rip" },
-    { REG::cs,  51, "cs" },
-    { REG::rflags, 49, "eflags" },
-    { REG::rsp, 7, "rsp" },
-    { REG::ss,  52, "ss" },
-    { REG::fs_base, 58, "fs_base" },
-    { REG::gs_base, 59, "gs_base" },
-    { REG::ds,  53, "ds" },
-    { REG::es,  50, "es" },
-    { REG::fs,  54, "fs" },
-    { REG::gs,  55, "gs" },
+    { Reg::r15, 15, "r15" },
+    { Reg::r14, 14, "r14" },
+    { Reg::r13, 13, "r13" },
+    { Reg::r12, 12, "r12" },
+    { Reg::rbp, 6,  "rbp" },
+    { Reg::rbx, 3,  "rbx" },
+    { Reg::r11, 11, "r11" },
+    { Reg::r10, 10, "r10" },
+    { Reg::r9,  9,  "r9" },
+    { Reg::r8,  8,  "r8" },
+    { Reg::rax, 0,  "rax" },
+    { Reg::rcx, 2,  "rcx" },
+    { Reg::rdx, 1, "rdx" },
+    { Reg::rsi, 4, "rsi" },
+    { Reg::rdi, 5, "rdi" },
+    { Reg::orig_rax, -1, "orig_rax" },
+    { Reg::rip, -1, "rip" },
+    { Reg::cs,  51, "cs" },
+    { Reg::rflags, 49, "eflags" },
+    { Reg::rsp, 7, "rsp" },
+    { Reg::ss,  52, "ss" },
+    { Reg::fs_base, 58, "fs_base" },
+    { Reg::gs_base, 59, "gs_base" },
+    { Reg::ds,  53, "ds" },
+    { Reg::es,  50, "es" },
+    { Reg::fs,  54, "fs" },
+    { Reg::gs,  55, "gs" },
 }};
 
-static inline unsigned long long *get_register_pointer(struct user_regs_struct &regs, REG reg)
+static unsigned long long *get_register_pointer(struct user_regs_struct &regs, Reg reg)
 {
     switch (reg) {
-        case REG::rax: return &regs.rax;
-        case REG::rbx: return &regs.rbx;
-        case REG::rcx: return &regs.rcx;
-        case REG::rdx: return &regs.rdx;
-        case REG::rdi: return &regs.rdi;
-        case REG::rsi: return &regs.rsi;
-        case REG::rbp: return &regs.rbp;
-        case REG::rsp: return &regs.rsp;
-        case REG::r8:  return &regs.r8;
-        case REG::r9:  return &regs.r9;
-        case REG::r10: return &regs.r10;
-        case REG::r11: return &regs.r11;
-        case REG::r12: return &regs.r12;
-        case REG::r13: return &regs.r13;
-        case REG::r14: return &regs.r14;
-        case REG::r15: return &regs.r15;
-        case REG::rip: return &regs.rip;
-        case REG::rflags: return &regs.eflags;
-        case REG::cs:  return &regs.cs;
-        case REG::orig_rax: return &regs.orig_rax;
-        case REG::fs_base:  return &regs.fs_base;
-        case REG::gs_base:  return &regs.gs_base;
-        case REG::fs:  return &regs.fs;
-        case REG::gs:  return &regs.gs;
-        case REG::ss:  return &regs.ss;
-        case REG::ds:  return &regs.ds;
-        case REG::es:  return &regs.es;
+        case Reg::rax: return &regs.rax;
+        case Reg::rbx: return &regs.rbx;
+        case Reg::rcx: return &regs.rcx;
+        case Reg::rdx: return &regs.rdx;
+        case Reg::rdi: return &regs.rdi;
+        case Reg::rsi: return &regs.rsi;
+        case Reg::rbp: return &regs.rbp;
+        case Reg::rsp: return &regs.rsp;
+        case Reg::r8:  return &regs.r8;
+        case Reg::r9:  return &regs.r9;
+        case Reg::r10: return &regs.r10;
+        case Reg::r11: return &regs.r11;
+        case Reg::r12: return &regs.r12;
+        case Reg::r13: return &regs.r13;
+        case Reg::r14: return &regs.r14;
+        case Reg::r15: return &regs.r15;
+        case Reg::rip: return &regs.rip;
+        case Reg::rflags: return &regs.eflags;
+        case Reg::cs:  return &regs.cs;
+        case Reg::orig_rax: return &regs.orig_rax;
+        case Reg::fs_base:  return &regs.fs_base;
+        case Reg::gs_base:  return &regs.gs_base;
+        case Reg::fs:  return &regs.fs;
+        case Reg::gs:  return &regs.gs;
+        case Reg::ss:  return &regs.ss;
+        case Reg::ds:  return &regs.ds;
+        case Reg::es:  return &regs.es;
         default: return nullptr;
     }
 }
 
-static inline uint64_t get_register_value(pid_t pid, REG reg)
+static inline uint64_t get_register_value(pid_t pid, Reg reg)
 {
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, pid, nullptr, &regs);
@@ -100,7 +100,7 @@ static inline uint64_t get_register_value(pid_t pid, REG reg)
     return *get_register_pointer(regs, reg);
 }
 
-static inline void set_register_value(pid_t pid, REG reg, uint64_t value)
+static inline void set_register_value(pid_t pid, Reg reg, uint64_t value)
 {
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, pid, nullptr, &regs);
@@ -120,7 +120,7 @@ static inline uint64_t get_register_value_from_dwarf_register(pid_t pid, unsigne
     return get_register_value(pid, it->reg);
 }
 
-static inline std::string get_register_name(REG reg)
+static inline std::string get_register_name(Reg reg)
 {
     auto it = std::find_if(g_register_descriptors.begin(), g_register_descriptors.end(),
             [reg](auto &&desc) { return desc.reg == reg; });
@@ -128,7 +128,7 @@ static inline std::string get_register_name(REG reg)
     return it->name;
 }
 
-static inline REG get_register_from_name(const std::string &name)
+static inline Reg get_register_from_name(const std::string &name)
 {
     auto it = std::find_if(g_register_descriptors.begin(), g_register_descriptors.end(),
             [name](auto &&desc) { return desc.name == name; });

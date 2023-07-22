@@ -90,7 +90,7 @@ void Debugger::wait_signal(bool slient)
     }
 }
 
-void Debugger::handle_sigtrap(siginfo_t *info) {
+void Debugger::handle_sigtrap(const siginfo_t *info) {
     switch (info->si_code) {
     // one of these cases will be set if a breakpoint was hit
     case SI_KERNEL:
@@ -260,7 +260,7 @@ void Debugger::step_over_breakpoint()
 // set breakpoint at the return address and continue execution
 void Debugger::step_out()
 {
-    uint64_t framer_pointer = get_register_value(m_pid, REG::rbp);
+    uint64_t framer_pointer = get_register_value(m_pid, Reg::rbp);
     uint64_t return_addr = read_memory(framer_pointer + sizeof(size_t));
 
     bool should_remove_breakpoint = false;
@@ -304,7 +304,7 @@ void Debugger::step_over()
         }
     }
 
-    auto framer_pointer = get_register_value(m_pid, REG::rbp);
+    auto framer_pointer = get_register_value(m_pid, Reg::rbp);
     auto return_addr = read_memory(framer_pointer + 8);
     if (!m_breakpoints.count(return_addr)) {
         set_breakpoint_at_addr(return_addr);
@@ -366,6 +366,7 @@ dwarf::die Debugger::get_func_die_from_addr(uint64_t addr)
         }
 
         for (const auto &die : cu.root()) {
+            // cppcheck-suppress useStlAlgorithm
             if (die.tag == dwarf::DW_TAG::subprogram && dwarf::die_pc_range(die).contains(addr)) {
                 return die;
             }

@@ -2,7 +2,6 @@
 
 #include <sstream>
 #include <string>
-#include <numeric>
 
 std::vector<std::string> split(const std::string &str, char delimiter)
 {

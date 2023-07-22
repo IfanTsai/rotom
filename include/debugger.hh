@@ -36,9 +36,9 @@ private:
 
     void write_memory(uint64_t addr, uint64_t val) const { ptrace(PTRACE_POKEDATA, m_pid, addr, val); }
 
-    uint64_t get_pc() const { return get_register_value(m_pid, REG::rip); }
+    uint64_t get_pc() const { return get_register_value(m_pid, Reg::rip); }
 
-    void set_pc(uint64_t val) { set_register_value(m_pid, REG::rip, val); }
+    void set_pc(uint64_t val) { set_register_value(m_pid, Reg::rip, val); }
 
     uint64_t get_elf_addr(uint64_t addr) { return addr - m_elf_addr_offset; }
 
@@ -49,7 +49,7 @@ private:
     void get_signal_info(siginfo_t *info) { ptrace(PTRACE_GETSIGINFO, m_pid, nullptr, info); }
 
     void wait_signal(bool slient=false);
-    void handle_sigtrap(siginfo_t *info);
+    void handle_sigtrap(const siginfo_t *info);
     uint64_t get_elf_addr_offset();
     void handle_command(const std::string &line);
     void continue_execution();
@@ -64,8 +64,8 @@ private:
     void step_in();
     void step_over();
     void print_source_code(const std::string &file_name, uint64_t line, uint64_t n_lines_context=2);
-    dwarf::die get_func_die_from_addr(uint64_t pc);
-    dwarf::line_table::iterator get_line_entry_from_addr(uint64_t pc);
+    dwarf::die get_func_die_from_addr(uint64_t addr);
+    dwarf::line_table::iterator get_line_entry_from_addr(uint64_t addr);
     std::vector<Symbol> lookup_symbol(const std::string &name);
 };
 

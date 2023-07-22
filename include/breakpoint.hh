@@ -12,7 +12,6 @@ public:
     bool is_enable() const { return m_enable; }
     intptr_t get_addr() const { return m_addr; }
 
-
     void enable();
     void disable();
 
