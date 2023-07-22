@@ -3,4 +3,4 @@
 	url = git@github.com:antirez/linenoise.git
 [submodule "3rd/libelfin"]
 	path = 3rd/libelfin
-	url = git@github.com:aclements/libelfin.git
+	url = git@github.com:TartanLlama/libelfin.git

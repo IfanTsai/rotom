@@ -71,6 +71,11 @@ void Debugger::wait_signal(bool slient)
     int wait_status;
     waitpid(m_pid, &wait_status, 0);
 
+    if (WIFEXITED(wait_status)) {
+        std::cout << "Debuggee process " << m_pid << " exited with status " << WEXITSTATUS(wait_status) << std::endl;
+        exit(0);
+    }
+
     if (slient) {
         return;
     }
@@ -173,6 +178,8 @@ void Debugger::handle_command(const std::string &line)
         }
     } else if (starts_with(command, "backtrace")) {
         print_backtrace();
+    } else if (starts_with(command, "variables")) {
+        print_variables();
     } else {
         std::cerr << "Unknown command" << std::endl;
     }
@@ -246,7 +253,7 @@ void Debugger::step_over_breakpoint()
         Breakpoint &bp = m_breakpoints[addr];
 
         if (bp.is_enable()) {
-            // disable the breakpoint and recover the original instruction
+            // disable the breakpoint
             bp.disable();
 
             // step over the original instruction
@@ -373,6 +380,43 @@ void Debugger::print_backtrace()
 
         current_func = get_func_die_from_addr(read_memory(frame_pointer + sizeof(size_t)));
         frame_pointer = read_memory(frame_pointer);  // next frame pointer
+    }
+}
+
+// only support dwarf2, so must pass -gdwarf-2 to gcc/g++
+void Debugger::print_variables()
+{
+    auto func = get_func_die_from_addr(get_elf_pc());
+    for (const auto &die : func) {
+        if (die.tag == dwarf::DW_TAG::variable) {
+            auto loc_val = die[dwarf::DW_AT::location];
+            if (loc_val.get_type() == dwarf::value::type::exprloc) {
+                PtraceExprContext context{m_pid, m_elf_addr_offset};
+                auto result = loc_val.as_exprloc().evaluate(&context);
+                switch (result.location_type) {
+                case dwarf::expr_result::type::address:
+                {
+                    auto addr = result.value;
+                    auto value = read_memory(addr);
+                    // TODO: print value based on the type of the variable
+                    std::cout << dwarf::at_name(die) << " (0x" << std::hex << addr << ") = " << std::dec << value << std::endl;
+                    break;
+                }
+                case dwarf::expr_result::type::reg:
+                {
+                    auto value = get_register_value_from_dwarf_register(m_pid, result.value);
+                    // TODO: print value based on the type of the variable
+                    std::cout << dwarf::at_name(die) << " (reg " << result.value << ") = " << std::dec << value << std::endl;
+                    break;
+                }
+                default:
+                    throw std::runtime_error{"Unhandled variable location"};
+                    break;
+                }
+            } else {
+                throw std::runtime_error{"Unhandled variable location"};
+            }
+        }
     }
 }
 

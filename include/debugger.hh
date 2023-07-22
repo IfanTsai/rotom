@@ -25,6 +25,8 @@ public:
 
    void run();
 private:
+    class PtraceExprContext;
+
     std::string m_prog_name;
     pid_t m_pid;
     std::unordered_map<std::intptr_t, Breakpoint> m_breakpoints;
@@ -65,8 +67,36 @@ private:
     void step_over();
     void print_source_code(const std::string &file_name, uint64_t line, uint64_t n_lines_context=2);
     void print_backtrace();
+    void print_variables();
     dwarf::die get_func_die_from_addr(uint64_t addr);
     dwarf::line_table::iterator get_line_entry_from_addr(uint64_t addr);
     std::vector<Symbol> lookup_symbol(const std::string &name);
 };
 
+class Debugger::PtraceExprContext: public dwarf::expr_context {
+public:
+    PtraceExprContext(pid_t pid, uint64_t elf_addr_offset)
+        : m_pid{pid}, m_elf_addr_offset(elf_addr_offset) {}
+
+    dwarf::taddr reg(unsigned regnum) override
+    {
+        return get_register_value_from_dwarf_register(m_pid, regnum);
+    }
+
+    dwarf::taddr pc() override
+    {
+        struct user_regs_struct regs;
+        ptrace(PTRACE_GETREGS, m_pid, nullptr, &regs);
+
+        return regs.rip - m_elf_addr_offset;
+    }
+
+    dwarf::taddr deref_size(dwarf::taddr address, unsigned size) override
+    {
+        return ptrace(PTRACE_PEEKDATA, m_pid, address + m_elf_addr_offset, nullptr);
+    }
+
+private:
+    pid_t m_pid;
+    uint64_t m_elf_addr_offset;
+};
