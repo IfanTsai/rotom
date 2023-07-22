@@ -118,12 +118,15 @@ void Debugger::handle_command(const std::string &line)
     if (starts_with(command, "continue")) {
         continue_execution();
     } else if (starts_with(command, "break")) {
-        std::string addr = args[1];
-        if (starts_with(addr, "0x") || starts_with(addr, "0X")) {
-            addr.erase(0, 2); // remove 0x or 0X
+        if (starts_with(args[1], "0x") || starts_with(args[1], "0X")) {
+            std::string addr { args[1], 2 };
+            set_breakpoint_at_addr(std::stol(addr, 0, 16));
+        } else if (args[1].find(':') != std::string::npos) {
+            std::vector<std::string> file_line = split(args[1], ':');
+            set_breakpoint_at_source_line(file_line[0], std::stoul(file_line[1]));
+        } else {
+            set_breakpoint_at_func(args[1]);
         }
-
-        set_breakpoint_at_addr(std::stol(addr, 0, 16));
     } else if (starts_with(command, "register")) {
         if (starts_with(args[1], "dump")) {
             dump_registers();
@@ -163,7 +166,13 @@ void Debugger::handle_command(const std::string &line)
         step_over();
     } else if (starts_with(command, "finish")) {
         step_out();
-    } else {
+    } else if (starts_with(command, "symbol")) {
+        std::vector<Symbol> symbols = lookup_symbol(args[1]);
+        for (const auto &s: symbols) {
+            std::cout << s.name << " " << s.type << " " << "0x" << std::hex << s.addr << std::endl;
+        }
+    }
+    else {
         std::cerr << "Unknown command" << std::endl;
     }
 }
@@ -176,11 +185,39 @@ void Debugger::continue_execution()
     wait_signal();
 }
 
-void Debugger::set_breakpoint_at_addr(const std::intptr_t addr)
+void Debugger::set_breakpoint_at_addr(const uint64_t addr)
 {
     Breakpoint bp(m_pid, addr);
     bp.enable();
     m_breakpoints[addr] = bp;
+}
+
+void Debugger::set_breakpoint_at_func(const std::string &name)
+{
+    for (const auto &cu : m_dwarf.compilation_units()) {
+        for (const auto &die : cu.root()) {
+            if (die.has(dwarf::DW_AT::name) && dwarf::at_name(die) == name) {
+                auto entry = get_line_entry_from_addr(dwarf::at_low_pc(die));
+                entry++; // skip prologue
+                set_breakpoint_at_addr(entry->address);
+            }
+        }
+    }
+}
+
+void Debugger::set_breakpoint_at_source_line(const std::string &file, uint64_t line)
+{
+    for (const auto &cu : m_dwarf.compilation_units()) {
+        if (ends_with(file, dwarf::at_name(cu.root()))) {
+            for (const auto &entry : cu.get_line_table()) {
+                // cppcheck-suppress useStlAlgorithm
+                if (entry.is_stmt && entry.line == line) {
+                    set_breakpoint_at_addr(entry.address);
+                    return;
+                }
+            }
+       }
+    }
 }
 
 void Debugger::remove_breakpoint(uint64_t addr)
@@ -224,7 +261,7 @@ void Debugger::step_over_breakpoint()
 void Debugger::step_out()
 {
     uint64_t framer_pointer = get_register_value(m_pid, REG::rbp);
-    uint64_t return_addr = read_memory(framer_pointer + 8);
+    uint64_t return_addr = read_memory(framer_pointer + sizeof(size_t));
 
     bool should_remove_breakpoint = false;
     if (!m_breakpoints.count(return_addr)) {
@@ -253,9 +290,9 @@ void Debugger::step_in()
 
 void Debugger::step_over()
 {
-    auto func = get_function_from_addr(get_elf_pc());
-    auto func_entry_addr = at_low_pc(func);
-    auto func_end_addr = at_high_pc(func);
+    auto func = get_func_die_from_addr(get_elf_pc());
+    auto func_entry_addr = dwarf::at_low_pc(func);
+    auto func_end_addr = dwarf::at_high_pc(func);
 
     std::vector<uint64_t> to_remove_breakpoint_addrs{};
     for (auto line = get_line_entry_from_addr(func_entry_addr); line->address < func_end_addr; line++) {
@@ -321,7 +358,7 @@ void Debugger::print_source_code(const std::string &file_name, uint64_t line, ui
     std::cout << std::endl;
 }
 
-dwarf::die Debugger::get_function_from_addr(uint64_t addr)
+dwarf::die Debugger::get_func_die_from_addr(uint64_t addr)
 {
     for (auto &cu : m_dwarf.compilation_units()) {
         if (!dwarf::die_pc_range(cu.root()).contains(addr)) {
@@ -356,4 +393,28 @@ dwarf::line_table::iterator Debugger::get_line_entry_from_addr(uint64_t addr)
 
 _exception:
     throw std::out_of_range("Cannot find line entry");
+}
+
+std::vector<Symbol> Debugger::lookup_symbol(const std::string &name)
+{
+    std::vector<Symbol> symbols{};
+
+    for (const auto &sec : m_elf.sections()) {
+        if (sec.get_hdr().type != elf::sht::symtab && sec.get_hdr().type != elf::sht::dynsym) {
+            continue;
+        }
+
+        for (const auto &sym : sec.as_symtab()) {
+            if (sym.get_name() == name) {
+                auto &d = sym.get_data();
+                symbols.push_back(Symbol{
+                        get_symbol_type_from_elf_symbol_type(d.type()),
+                        sym.get_name(),
+                        d.value
+                    });
+            }
+        }
+    }
+
+    return symbols;
 }

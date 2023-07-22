@@ -24,3 +24,8 @@ bool starts_with(const std::string &str, const std::string &prefix)
 {
     return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
 }
+
+bool ends_with(const std::string &str, const std::string &suffix)
+{
+    return str.size() >= suffix.size() && str.substr(str.size() - suffix.size(), suffix.size()) == suffix;
+}

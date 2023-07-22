@@ -2,6 +2,7 @@
 
 #include "breakpoint.hh"
 #include "register.hh"
+#include "symbol.hh"
 
 #include "dwarf/dwarf++.hh"
 #include "elf/elf++.hh"
@@ -52,7 +53,9 @@ private:
     uint64_t get_elf_addr_offset();
     void handle_command(const std::string &line);
     void continue_execution();
-    void set_breakpoint_at_addr(const std::intptr_t addr);
+    void set_breakpoint_at_addr(const uint64_t addr);
+    void set_breakpoint_at_func(const std::string &name);
+    void set_breakpoint_at_source_line(const std::string &file, uint64_t line);
     void remove_breakpoint(uint64_t addr);
     void dump_registers();
     void single_step_instruction(bool with_check_breakpoint=false);
@@ -61,7 +64,8 @@ private:
     void step_in();
     void step_over();
     void print_source_code(const std::string &file_name, uint64_t line, uint64_t n_lines_context=2);
-    dwarf::die get_function_from_addr(uint64_t pc);
+    dwarf::die get_func_die_from_addr(uint64_t pc);
     dwarf::line_table::iterator get_line_entry_from_addr(uint64_t pc);
+    std::vector<Symbol> lookup_symbol(const std::string &name);
 };
 

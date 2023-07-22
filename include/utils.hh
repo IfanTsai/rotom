@@ -5,4 +5,4 @@
 
 std::vector<std::string> split(const std::string &str, char delimiter);
 bool starts_with(const std::string &str, const std::string &prefix);
-
+bool ends_with(const std::string &str, const std::string &suffix);
