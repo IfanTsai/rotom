@@ -171,8 +171,9 @@ void Debugger::handle_command(const std::string &line)
         for (const auto &s: symbols) {
             std::cout << s.name << " " << s.type << " " << "0x" << std::hex << s.addr << std::endl;
         }
-    }
-    else {
+    } else if (starts_with(command, "backtrace")) {
+        print_backtrace();
+    } else {
         std::cerr << "Unknown command" << std::endl;
     }
 }
@@ -262,7 +263,6 @@ void Debugger::step_out()
 {
     uint64_t framer_pointer = get_register_value(m_pid, Reg::rbp);
     uint64_t return_addr = read_memory(framer_pointer + sizeof(size_t));
-
     bool should_remove_breakpoint = false;
     if (!m_breakpoints.count(return_addr)) {
         set_breakpoint_at_addr(return_addr);
@@ -356,6 +356,24 @@ void Debugger::print_source_code(const std::string &file_name, uint64_t line, ui
     }
 
     std::cout << std::endl;
+}
+
+void Debugger::print_backtrace()
+{
+    auto current_func = get_func_die_from_addr(get_elf_pc());
+    auto frame_pointer = get_register_value(m_pid, Reg::rbp);
+
+    for (int frame_number = 0; ;frame_number++) {
+        std::string func_name = dwarf::at_name(current_func);
+        std::cout << "frame #" << frame_number << ": 0x" << std::hex << dwarf::at_low_pc(current_func)
+                  << " " << func_name << std::endl;
+        if (func_name == "main") {
+            break;
+        }
+
+        current_func = get_func_die_from_addr(read_memory(frame_pointer + sizeof(size_t)));
+        frame_pointer = read_memory(frame_pointer);  // next frame pointer
+    }
 }
 
 dwarf::die Debugger::get_func_die_from_addr(uint64_t addr)

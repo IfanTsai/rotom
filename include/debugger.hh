@@ -64,6 +64,7 @@ private:
     void step_in();
     void step_over();
     void print_source_code(const std::string &file_name, uint64_t line, uint64_t n_lines_context=2);
+    void print_backtrace();
     dwarf::die get_func_die_from_addr(uint64_t addr);
     dwarf::line_table::iterator get_line_entry_from_addr(uint64_t addr);
     std::vector<Symbol> lookup_symbol(const std::string &name);
