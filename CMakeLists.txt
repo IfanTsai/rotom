@@ -13,6 +13,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/3rd/linenoise
     ${CMAKE_CURRENT_SOURCE_DIR}/3rd/libelfin
+    ${CMAKE_CURRENT_SOURCE_DIR}/3rd/clipp/include
 )
 
 file(GLOB SRCS
